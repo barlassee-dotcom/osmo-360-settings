@@ -2,8 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DeviceType, ProSettings, RecommendationRequest } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
 const getSchema = (lang: 'TR' | 'EN') => ({
   type: Type.OBJECT,
   properties: {
@@ -26,9 +24,15 @@ const getSchema = (lang: 'TR' | 'EN') => ({
 });
 
 export async function getSettingsRecommendation(req: RecommendationRequest): Promise<ProSettings> {
+  // Her çağrıda yeni instance oluştur (Guideline kuralı)
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   const model = "gemini-3-flash-preview";
   const { envData, lang } = req;
   
+  if (!process.env.API_KEY) {
+    throw new Error("API_KEY_MISSING");
+  }
+
   const systemInstruction = lang === 'TR' 
     ? `Sen DJI Osmo 360 için uzman bir sinematografsın. Çekim aktivitesine göre (örn: motor, sabit, yürüyüş, müze, parti) en doğru ayarları önerirsin. 
     İç mekan çekimlerinde yapay ışık titremesini (anti-flicker) ve dikiş izlerini (parallax) önleme konularına odaklan. 
@@ -64,15 +68,24 @@ export async function getSettingsRecommendation(req: RecommendationRequest): Pro
     });
   }
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: { parts: contents },
-    config: {
-      systemInstruction,
-      responseMimeType: "application/json",
-      responseSchema: getSchema(lang),
-    }
-  });
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: { parts: contents },
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: getSchema(lang),
+      }
+    });
 
-  return JSON.parse(response.text || "{}") as ProSettings;
+    if (!response.text) {
+      throw new Error("EMPTY_RESPONSE");
+    }
+
+    return JSON.parse(response.text) as ProSettings;
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    throw error;
+  }
 }

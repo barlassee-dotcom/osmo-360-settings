@@ -75,6 +75,13 @@ const App: React.FC = () => {
       autoLocSuccess: "Akıllı veriler hazır!",
       manualOr: "VEYA MANUEL VERİ GİRİŞİ",
       satelliteData: "UYDU VERİLERİ",
+      errors: {
+        geoDenied: "Konum izni reddedildi. Lütfen tarayıcı ayarlarından izin verin.",
+        geoTimeout: "Konum alma isteği zaman aşımına uğradı.",
+        geoUnavailable: "Konum bilgisi şu an mevcut değil.",
+        apiError: "AI Analizi başarısız oldu. Lütfen internetinizi ve API anahtarınızı kontrol edin.",
+        noApiKey: "Sistemde API anahtarı eksik. Lütfen yöneticiye bildirin."
+      },
       activityIcons: {
         [ShootingActivity.STATIC]: '🔭',
         [ShootingActivity.WALKING]: '🚶',
@@ -149,6 +156,13 @@ const App: React.FC = () => {
       autoLocSuccess: "Smart data ready!",
       manualOr: "OR MANUAL DATA ENTRY",
       satelliteData: "SATELLITE DATA",
+      errors: {
+        geoDenied: "Location permission denied. Please enable it in browser settings.",
+        geoTimeout: "Location request timed out.",
+        geoUnavailable: "Location info is currently unavailable.",
+        apiError: "AI Analysis failed. Please check your internet and API key.",
+        noApiKey: "API Key is missing in the system. Please report to admin."
+      },
       activityIcons: {
         [ShootingActivity.STATIC]: '🔭',
         [ShootingActivity.WALKING]: '🚶',
@@ -176,11 +190,16 @@ const App: React.FC = () => {
     setAutoData(null);
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject);
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
       });
       
       const { latitude, longitude } = position.coords;
       const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+      if (!weatherRes.ok) throw new Error("Weather API failed");
       const weatherJson = await weatherRes.json();
       
       const current = weatherJson.current_weather;
@@ -204,8 +223,15 @@ const App: React.FC = () => {
         lang: lang
       });
       setRecommendation(result);
-    } catch (err) {
-      alert(lang === 'TR' ? "Konum izni reddedildi veya hata oluştu." : "Location permission denied or error occurred.");
+    } catch (err: any) {
+      console.error("Shoot Now Error:", err);
+      let errorMsg = t.errors.apiError;
+      if (err.code === 1) errorMsg = t.errors.geoDenied;
+      else if (err.code === 2) errorMsg = t.errors.geoUnavailable;
+      else if (err.code === 3) errorMsg = t.errors.geoTimeout;
+      else if (err.message === "API_KEY_MISSING") errorMsg = t.errors.noApiKey;
+      
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -233,8 +259,10 @@ const App: React.FC = () => {
         lang: lang
       });
       setRecommendation(result);
-    } catch (error) {
-      alert("AI Analysis Failed.");
+    } catch (error: any) {
+      console.error("Manual Entry Error:", error);
+      const msg = error.message === "API_KEY_MISSING" ? t.errors.noApiKey : t.errors.apiError;
+      alert(msg);
     } finally {
       setLoading(false);
     }
