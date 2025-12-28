@@ -24,9 +24,12 @@ const getSchema = (lang: 'TR' | 'EN') => ({
 });
 
 export async function getSettingsRecommendation(req: RecommendationRequest): Promise<ProSettings> {
-  // Hard requirement: Always create a new instance with process.env.API_KEY
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  const model = "gemini-3-flash-preview";
+  // Hard requirement: Use process.env.API_KEY directly. 
+  // If undefined, the GenAI SDK will handle the missing key error internally.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  
+  // Using Pro model for complex cinematography reasoning
+  const model = "gemini-3-pro-preview";
   const { envData, lang } = req;
   
   const systemInstruction = lang === 'TR' 
