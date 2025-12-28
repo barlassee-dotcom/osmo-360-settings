@@ -21,7 +21,11 @@ export enum ShootingActivity {
   MUSEUM = 'MUSEUM',
   CONCERT = 'CONCERT',
   STUDIO = 'STUDIO',
-  SPORT_HALL = 'SPORT_HALL'
+  SPORT_HALL = 'SPORT_HALL',
+  REAL_ESTATE = 'REAL_ESTATE',
+  CAFE_RESTAURANT = 'CAFE_RESTAURANT',
+  WORKSHOP = 'WORKSHOP',
+  OFFICE = 'OFFICE'
 }
 
 export enum WeatherType {
