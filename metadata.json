@@ -1,7 +1,8 @@
 {
-  "name": "DJI Osmo Pro Settings Advisor",
-  "description": "An expert companion for DJI Osmo users to find the perfect Pro mode settings (ISO, Shutter, WB, Color Profiles) based on environment and scene analysis.",
+  "name": "DJI Osmo 360 Pro Ayar Danışmanı",
+  "description": "DJI Osmo kullanıcıları için ortam ve sahne analizine dayalı mükemmel Pro modu ayarlarını (ISO, Shutter, WB, Renk Profilleri) bulan uzman yardımcı.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "geolocation"
   ]
 }

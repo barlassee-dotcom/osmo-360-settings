@@ -3,13 +3,47 @@ export enum DeviceType {
   OSMO_360 = 'DJI Osmo 360'
 }
 
-export enum EnvironmentType {
-  BRIGHT_DAY = 'Bright Daylight',
-  GOLDEN_HOUR = 'Golden Hour',
-  LOW_LIGHT = 'Low Light / Night',
-  INDOOR = 'Indoor / Studio',
-  ACTION_SPORTS = 'High-Speed Action',
-  UNDERWATER = 'Underwater'
+export enum LocationType {
+  INDOOR = 'INDOOR',
+  OUTDOOR = 'OUTDOOR'
+}
+
+export enum ShootingActivity {
+  STATIC = 'STATIC',
+  WALKING = 'WALKING',
+  RUNNING = 'RUNNING',
+  CYCLING = 'CYCLING',
+  MOTORCYCLING = 'MOTORCYCLING',
+  DRIVING = 'DRIVING',
+  VLOGGING = 'VLOGGING',
+  ACTION = 'ACTION',
+  PARTY = 'PARTY',
+  MUSEUM = 'MUSEUM',
+  CONCERT = 'CONCERT',
+  STUDIO = 'STUDIO',
+  SPORT_HALL = 'SPORT_HALL'
+}
+
+export enum WeatherType {
+  SUNNY = 'SUNNY',
+  CLOUDY = 'CLOUDY',
+  OVERCAST = 'OVERCAST',
+  RAINY = 'RAINY',
+  FOGGY = 'FOGGY',
+  SNOWY = 'SNOWY'
+}
+
+export interface EnvironmentData {
+  type: LocationType;
+  activity: ShootingActivity;
+  country?: string;
+  city?: string;
+  date?: string;
+  time?: string;
+  weather?: string;
+  temp?: string;
+  description?: string;
+  isAuto?: boolean;
 }
 
 export interface ProSettings {
@@ -27,6 +61,9 @@ export interface ProSettings {
 
 export interface RecommendationRequest {
   device: DeviceType;
-  environment: EnvironmentType | string;
-  image?: string; // base64
+  envData: EnvironmentData;
+  image?: string;
+  lang: 'TR' | 'EN';
 }
+
+export type AppLang = 'TR' | 'EN';

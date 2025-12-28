@@ -1,47 +1,58 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { DeviceType, EnvironmentType, ProSettings, RecommendationRequest } from "../types";
+import { DeviceType, ProSettings, RecommendationRequest } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-const PRO_SETTINGS_SCHEMA = {
+const getSchema = (lang: 'TR' | 'EN') => ({
   type: Type.OBJECT,
   properties: {
-    resolution: { type: Type.STRING, description: "Recommended resolution (e.g., 5.7K, 4K 360)" },
-    fps: { type: Type.STRING, description: "Recommended frames per second (e.g., 24, 30, 60)" },
-    shutterSpeed: { type: Type.STRING, description: "Recommended shutter speed based on 180-degree rule for motion blur" },
-    iso: { type: Type.STRING, description: "Recommended ISO range or fixed value" },
-    ev: { type: Type.STRING, description: "Recommended Exposure Value compensation (e.g., -0.3, -0.7, 0.0)" },
-    whiteBalance: { type: Type.STRING, description: "Recommended Kelvin value for consistency across lenses" },
-    colorProfile: { type: Type.STRING, description: "Recommended profile (D-Log, HDR, or Standard)" },
-    ndFilter: { type: Type.STRING, description: "Recommended ND filter strength for the 360 lenses" },
-    explanation: { type: Type.STRING, description: "Brief explanation of why these settings were chosen for 360 capture" },
+    resolution: { type: Type.STRING },
+    fps: { type: Type.STRING },
+    shutterSpeed: { type: Type.STRING },
+    iso: { type: Type.STRING },
+    ev: { type: Type.STRING },
+    whiteBalance: { type: Type.STRING },
+    colorProfile: { type: Type.STRING },
+    ndFilter: { type: Type.STRING },
+    explanation: { type: Type.STRING, description: `A brief explanation in ${lang === 'TR' ? 'Turkish' : 'English'}` },
     proTips: { 
       type: Type.ARRAY, 
       items: { type: Type.STRING },
-      description: "3 specific pro tips for 360-degree filming in this scenario" 
+      description: `3 pro tips in ${lang === 'TR' ? 'Turkish' : 'English'}` 
     }
   },
   required: ["resolution", "fps", "shutterSpeed", "iso", "ev", "whiteBalance", "colorProfile", "ndFilter", "explanation", "proTips"],
-};
+});
 
 export async function getSettingsRecommendation(req: RecommendationRequest): Promise<ProSettings> {
   const model = "gemini-3-flash-preview";
+  const { envData, lang } = req;
   
-  const systemInstruction = `You are a world-class 360-degree cinematographer and technical expert for the DJI Osmo 360 camera system. 
-  Your goal is to provide precise 'Pro Mode' settings. 
-  For 360 capture, focus on:
-  1. Manual White Balance (CRITICAL for 360 to avoid stitching seams).
-  2. The 180-degree rule for motion blur.
-  3. EV (Exposure Value) management: In 360, it's often better to underexpose slightly (e.g., -0.3 or -0.7) to preserve sky details.
-  4. ISO management to minimize noise in dark areas of the 360 sphere.
-  5. Advice on 360-specific features like HorizonSteady.`;
+  const systemInstruction = lang === 'TR' 
+    ? `Sen DJI Osmo 360 için uzman bir sinematografsın. Çekim aktivitesine göre (örn: motor, sabit, yürüyüş, müze, parti) en doğru ayarları önerirsin. 
+    İç mekan çekimlerinde yapay ışık titremesini (anti-flicker) ve dikiş izlerini (parallax) önleme konularına odaklan. 
+    Düşük ışıkta gürültü kontrolü için ISO limitlerini vurgula. 
+    Dış mekanda gökyüzü detayları için hafif negatif EV öner. Tüm yanıtlarını TÜRKÇE ver.`
+    : `You are an expert cinematographer for DJI Osmo 360. Recommend settings based on activity (e.g., motorcycling, static, museum, party). 
+    For indoor shots, focus on preventing light flicker (anti-flicker) and stitching seams (parallax issues with close subjects). 
+    Emphasize ISO limits for noise control in low light. 
+    For outdoor, suggest slightly negative EV to protect highlights. Provide all responses in ENGLISH.`;
 
-  const prompt = `Provide the absolute best Pro Mode settings for the ${req.device}.
-  Environment: ${req.environment}
-  ${req.image ? "Analysis of the provided image is required to determine the exact lighting conditions, dynamic range, and required EV offset." : ""}
-  
-  Return the response in JSON format. Ensure the EV value is explicitly included to help the user avoid highlight clipping.`;
+  let prompt = `${req.device} ${lang === 'TR' ? 'Ayar Reçetesi' : 'Settings Recipe'}:
+  Location: ${envData.type}
+  Activity: ${envData.activity}
+  `;
+
+  if (envData.isAuto) {
+    prompt += `[AUTO CONTEXT] Weather: ${envData.weather}, Temp: ${envData.temp}, Local Time: ${envData.time}\n`;
+  } else if (envData.type === 'OUTDOOR') {
+    prompt += `Manual Context: ${envData.city}, ${envData.country}, Time: ${envData.date} ${envData.time}, Weather: ${envData.weather}\n`;
+  }
+
+  if (envData.description) {
+    prompt += `Additional User Notes: ${envData.description}\n`;
+  }
 
   const contents: any[] = [{ text: prompt }];
   if (req.image) {
@@ -59,7 +70,7 @@ export async function getSettingsRecommendation(req: RecommendationRequest): Pro
     config: {
       systemInstruction,
       responseMimeType: "application/json",
-      responseSchema: PRO_SETTINGS_SCHEMA,
+      responseSchema: getSchema(lang),
     }
   });
 

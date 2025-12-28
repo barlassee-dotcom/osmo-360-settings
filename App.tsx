@@ -1,42 +1,226 @@
 
 import React, { useState, useRef } from 'react';
-import { DeviceType, EnvironmentType, ProSettings, RecommendationRequest } from './types';
+import { DeviceType, LocationType, WeatherType, ShootingActivity, ProSettings, RecommendationRequest, AppLang, EnvironmentData } from './types';
 import { getSettingsRecommendation } from './services/geminiService';
 import SettingsDisplay from './components/SettingsDisplay';
 
 const App: React.FC = () => {
+  const [lang, setLang] = useState<AppLang>('TR');
   const [loading, setLoading] = useState(false);
-  const [environment, setEnvironment] = useState<EnvironmentType>(EnvironmentType.BRIGHT_DAY);
-  const [customEnvironment, setCustomEnvironment] = useState('');
+  const [locType, setLocType] = useState<LocationType>(LocationType.OUTDOOR);
+  const [activity, setActivity] = useState<ShootingActivity>(ShootingActivity.WALKING);
+  const [country, setCountry] = useState('Türkiye');
+  const [city, setCity] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState('12:00');
+  const [weather, setWeather] = useState<WeatherType>(WeatherType.SUNNY);
+  const [description, setDescription] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [recommendation, setRecommendation] = useState<ProSettings | null>(null);
+  const [autoData, setAutoData] = useState<{ weather: string, temp: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
+  const t = {
+    TR: {
+      title: "OSMO 360 DANIŞMANI",
+      subtitle: "Mekan, hava durumu ve aktiviteye göre profesyonel çekim rehberi.",
+      shootNow: "ŞİMDİ ÇEKİM YAPACAĞIM",
+      locTypeLabel: "1. Mekan Türü",
+      activityTypeLabel: "2. Ne Çekiyorsunuz?",
+      locTimeLabel: "3. Lokasyon ve Zaman",
+      extraLabel: "Ek Detaylar & Fotoğraf",
+      locationTypes: {
+        [LocationType.INDOOR]: "İç Mekan",
+        [LocationType.OUTDOOR]: "Dış Mekan"
+      },
+      country: "ÜLKE",
+      city: "ŞEHİR",
+      date: "TARİH",
+      time: "SAAT",
+      weatherLabel: "HAVA DURUMU",
+      weatherTypes: {
+        [WeatherType.SUNNY]: "Güneşli",
+        [WeatherType.CLOUDY]: "Bulutlu",
+        [WeatherType.OVERCAST]: "Kapalı",
+        [WeatherType.RAINY]: "Yağmurlu",
+        [WeatherType.FOGGY]: "Sisli",
+        [WeatherType.SNOWY]: "Karlı"
+      },
+      activities: {
+        [ShootingActivity.STATIC]: "Sabit / Tripod",
+        [ShootingActivity.WALKING]: "Yürüyüş",
+        [ShootingActivity.RUNNING]: "Koşu",
+        [ShootingActivity.CYCLING]: "Bisiklet",
+        [ShootingActivity.MOTORCYCLING]: "Motor Sürüşü",
+        [ShootingActivity.DRIVING]: "Araç Sürüşü",
+        [ShootingActivity.VLOGGING]: "Vlog / Elinde",
+        [ShootingActivity.ACTION]: "Extreme Aksiyon",
+        [ShootingActivity.PARTY]: "Parti / Etkinlik",
+        [ShootingActivity.MUSEUM]: "Müze / Sergi",
+        [ShootingActivity.CONCERT]: "Konser / Sahne",
+        [ShootingActivity.STUDIO]: "Stüdyo / Röportaj",
+        [ShootingActivity.SPORT_HALL]: "Spor Salonu"
+      },
+      descPlaceholder: "Örn: Az ışıklı bir oda, kask üzerine monteli, hızlı hareketler...",
+      upload: "Ortam fotoğrafı yükle (Opsiyonel)",
+      uploadSub: "AI ışık ve renk sıcaklığını analiz eder",
+      btn: "PRO AYARLARI OLUŞTUR",
+      loading: "STRATEJİ BELİRLENİYOR...",
+      results: "DİNAMİK PRO AYARLAR",
+      footer: "Lenslerinizi silmeyi unutmayın!",
+      autoLocSuccess: "Akıllı veriler hazır!",
+      manualOr: "VEYA MANUEL VERİ GİRİŞİ",
+      satelliteData: "UYDU VERİLERİ",
+      liveData: "ANLIK VERİ",
+      activityIcons: {
+        [ShootingActivity.STATIC]: '🔭',
+        [ShootingActivity.WALKING]: '🚶',
+        [ShootingActivity.RUNNING]: '🏃',
+        [ShootingActivity.CYCLING]: '🚲',
+        [ShootingActivity.MOTORCYCLING]: '🏍️',
+        [ShootingActivity.DRIVING]: '🚗',
+        [ShootingActivity.VLOGGING]: '🤳',
+        [ShootingActivity.ACTION]: '⚡',
+        [ShootingActivity.PARTY]: '🎉',
+        [ShootingActivity.MUSEUM]: '🏛️',
+        [ShootingActivity.CONCERT]: '🎸',
+        [ShootingActivity.STUDIO]: '🎙️',
+        [ShootingActivity.SPORT_HALL]: '🏀'
+      }
+    },
+    EN: {
+      title: "OSMO 360 ADVISOR",
+      subtitle: "Pro 360 guide based on location, weather, and activity.",
+      shootNow: "I'M SHOOTING NOW",
+      locTypeLabel: "1. Location Type",
+      activityTypeLabel: "2. What are you shooting?",
+      locTimeLabel: "3. Location & Time",
+      extraLabel: "Extra Details & Photo",
+      locationTypes: {
+        [LocationType.INDOOR]: "Indoor",
+        [LocationType.OUTDOOR]: "Outdoor"
+      },
+      country: "COUNTRY",
+      city: "CITY",
+      date: "DATE",
+      time: "TIME",
+      weatherLabel: "WEATHER",
+      weatherTypes: {
+        [WeatherType.SUNNY]: "Sunny",
+        [WeatherType.CLOUDY]: "Cloudy",
+        [WeatherType.OVERCAST]: "Overcast",
+        [WeatherType.RAINY]: "Rainy",
+        [WeatherType.FOGGY]: "Foggy",
+        [WeatherType.SNOWY]: "Snowy"
+      },
+      activities: {
+        [ShootingActivity.STATIC]: "Static / Tripod",
+        [ShootingActivity.WALKING]: "Walking",
+        [ShootingActivity.RUNNING]: "Running",
+        [ShootingActivity.CYCLING]: "Cycling",
+        [ShootingActivity.MOTORCYCLING]: "Motorcycling",
+        [ShootingActivity.DRIVING]: "Driving",
+        [ShootingActivity.VLOGGING]: "Vlogging",
+        [ShootingActivity.ACTION]: "Extreme Action",
+        [ShootingActivity.PARTY]: "Party / Event",
+        [ShootingActivity.MUSEUM]: "Museum / Exhibit",
+        [ShootingActivity.CONCERT]: "Concert / Stage",
+        [ShootingActivity.STUDIO]: "Studio / Interview",
+        [ShootingActivity.SPORT_HALL]: "Indoor Sports"
+      },
+      descPlaceholder: "E.g.: Low light room, helmet mounted, fast transitions...",
+      upload: "Upload environment photo (Optional)",
+      uploadSub: "AI analyzes light and color temperature",
+      btn: "GENERATE PRO SETTINGS",
+      loading: "PLANNING STRATEGY...",
+      results: "DYNAMIC PRO SETTINGS",
+      footer: "Don't forget to wipe your lenses!",
+      autoLocSuccess: "Smart data ready!",
+      manualOr: "OR MANUAL DATA ENTRY",
+      satelliteData: "SATELLITE DATA",
+      liveData: "LIVE DATA",
+      activityIcons: {
+        [ShootingActivity.STATIC]: '🔭',
+        [ShootingActivity.WALKING]: '🚶',
+        [ShootingActivity.RUNNING]: '🏃',
+        [ShootingActivity.CYCLING]: '🚲',
+        [ShootingActivity.MOTORCYCLING]: '🏍️',
+        [ShootingActivity.DRIVING]: '🚗',
+        [ShootingActivity.VLOGGING]: '🤳',
+        [ShootingActivity.ACTION]: '⚡',
+        [ShootingActivity.PARTY]: '🎉',
+        [ShootingActivity.MUSEUM]: '🏛️',
+        [ShootingActivity.CONCERT]: '🎸',
+        [ShootingActivity.STUDIO]: '🎙️',
+        [ShootingActivity.SPORT_HALL]: '🏀'
+      }
+    }
+  }[lang];
+
+  const handleShootNow = async () => {
+    setLoading(true);
+    setAutoData(null);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject);
+      });
+      
+      const { latitude, longitude } = position.coords;
+      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+      const weatherJson = await weatherRes.json();
+      
+      const current = weatherJson.current_weather;
+      const weatherCodes: any = { 0: "Clear", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast", 45: "Foggy", 48: "Foggy", 51: "Drizzle", 61: "Rain", 71: "Snow" };
+      const weatherDesc = weatherCodes[current.weathercode] || "Variable";
+      
+      const env: EnvironmentData = {
+        type: LocationType.OUTDOOR,
+        activity: activity,
+        weather: weatherDesc,
+        temp: `${current.temperature}°C`,
+        time: new Date().toLocaleTimeString(),
+        isAuto: true
       };
-      reader.readAsDataURL(file);
+
+      setAutoData({ weather: weatherDesc, temp: `${current.temperature}°C` });
+      
+      const result = await getSettingsRecommendation({
+        device: DeviceType.OSMO_360,
+        envData: env,
+        lang: lang
+      });
+      setRecommendation(result);
+    } catch (err) {
+      alert(lang === 'TR' ? "Konum izni reddedildi veya hata oluştu." : "Location permission denied or error occurred.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const getAdvice = async () => {
     setLoading(true);
     setRecommendation(null);
+    setAutoData(null);
     try {
-      const req: RecommendationRequest = {
-        device: DeviceType.OSMO_360,
-        environment: customEnvironment || environment,
-        image: image || undefined
+      const env: EnvironmentData = {
+        type: locType,
+        activity: activity,
+        country: locType === LocationType.OUTDOOR ? country : undefined,
+        city: locType === LocationType.OUTDOOR ? city : undefined,
+        date: locType === LocationType.OUTDOOR ? date : undefined,
+        time: locType === LocationType.OUTDOOR ? time : undefined,
+        weather: locType === LocationType.OUTDOOR ? weather : undefined,
+        description: description
       };
-      const result = await getSettingsRecommendation(req);
+      const result = await getSettingsRecommendation({
+        device: DeviceType.OSMO_360,
+        envData: env,
+        image: image || undefined,
+        lang: lang
+      });
       setRecommendation(result);
     } catch (error) {
-      console.error("Failed to get advice:", error);
-      alert("CineAI bağlantısı sırasında bir hata oluştu.");
+      alert("AI Analysis Failed.");
     } finally {
       setLoading(false);
     }
@@ -44,120 +228,187 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20 px-4 pt-8 max-w-4xl mx-auto">
-      {/* Header */}
-      <header className="mb-12 text-center">
+      <div className="flex justify-end mb-4">
+        <button 
+          onClick={() => setLang(l => l === 'TR' ? 'EN' : 'TR')}
+          className="glass px-4 py-2 rounded-full text-[10px] font-black tracking-widest border-white/20 hover:bg-white/10 transition-all uppercase"
+        >
+          {lang === 'TR' ? 'SWITCH TO ENGLISH' : 'TÜRKÇE\'YE GEÇ'}
+        </button>
+      </div>
+
+      <header className="mb-10 text-center">
         <div className="inline-flex items-center justify-center p-2 mb-4 rounded-full bg-white/5 border border-white/10 px-4">
           <span className="w-2 h-2 rounded-full bg-yellow-500 mr-2 animate-pulse"></span>
-          <span className="text-xs font-bold tracking-widest uppercase text-white/60">360° Professional Assistant</span>
+          <span className="text-[10px] font-bold tracking-widest uppercase text-white/60">360° Vision Assistant</span>
         </div>
-        <h1 className="text-5xl md:text-6xl font-black mb-4 tracking-tighter">
-          OSMO <span className="text-yellow-500">360</span> ADVISOR
+        <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tighter italic">
+          {t.title}
         </h1>
-        <p className="text-gray-400 max-w-xl mx-auto text-lg">
-          DJI Osmo 360 için her ortamda en mükemmel Pro ayarlarını anında öğrenin.
+        <p className="text-gray-400 max-w-xl mx-auto text-sm md:text-base px-4">
+          {t.subtitle}
         </p>
       </header>
 
-      <main className="space-y-8">
-        {/* Environment Selection */}
-        <section className="glass rounded-3xl p-6 md:p-8">
-          <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-6">1. Ortamınızı Seçin</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-            {Object.values(EnvironmentType).map((e) => (
+      <main className="space-y-6">
+        {/* Aktivite Seçimi */}
+        <section className="glass rounded-3xl p-6">
+          <h2 className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-6 flex items-center">
+            <span className="w-4 h-px bg-white/20 mr-2"></span>
+            {t.activityTypeLabel}
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {Object.values(ShootingActivity).map((act) => (
               <button
-                key={e}
-                onClick={() => {
-                  setEnvironment(e);
-                  setCustomEnvironment('');
-                }}
-                className={`p-4 rounded-2xl border transition-all text-sm font-medium ${
-                  environment === e && !customEnvironment
-                    ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
-                    : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+                key={act}
+                onClick={() => setActivity(act)}
+                className={`flex flex-col items-center justify-center py-4 px-2 rounded-2xl border-2 transition-all duration-300 ${
+                  activity === act 
+                    ? 'bg-yellow-500 border-yellow-500 text-black shadow-[0_0_20px_rgba(250,204,21,0.3)] scale-105' 
+                    : 'bg-white/5 border-white/10 text-white/70 hover:border-white/20'
                 }`}
               >
-                {e}
+                <span className="text-2xl mb-2">{(t.activityIcons as any)[act]}</span>
+                <span className="text-[9px] font-black uppercase text-center leading-none tracking-tighter px-1">
+                  {(t.activities as any)[act]}
+                </span>
               </button>
             ))}
           </div>
-          
-          <div className="relative mb-6">
-            <input 
-              type="text" 
-              placeholder="Veya ortamı tarif edin (Örn: 'Gün batımında karlı dağlar', 'Gece kulübü')"
-              value={customEnvironment}
-              onChange={(e) => setCustomEnvironment(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all text-white placeholder:text-white/20"
-            />
-          </div>
-
-          <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-4 mt-8">2. Ortam Fotoğrafı (Opsiyonel)</h2>
-          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-white/10 rounded-3xl hover:border-yellow-500/50 transition-colors cursor-pointer group" onClick={() => fileInputRef.current?.click()}>
-            {image ? (
-              <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-2xl">
-                <img src={image} alt="Target environment" className="w-full h-full object-cover" />
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setImage(null); }}
-                  className="absolute top-2 right-2 bg-black/50 p-2 rounded-full hover:bg-red-500 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform bg-gradient-to-br from-white/10 to-transparent">
-                  <svg className="w-7 h-7 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                </div>
-                <p className="text-sm font-semibold text-white/60 italic">Fotoğraf yükleyerek daha kesin sonuçlar alın</p>
-                <p className="text-xs text-white/20 mt-1 uppercase tracking-tighter">AI ışık ve renk sıcaklığını analiz eder</p>
-              </div>
-            )}
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept="image/*" 
-              onChange={handleFileChange} 
-            />
-          </div>
         </section>
 
-        {/* Action Button */}
-        <button
-          onClick={getAdvice}
-          disabled={loading}
-          className="w-full py-6 rounded-3xl accent-gradient text-black font-black text-xl shadow-[0_10px_40px_rgba(202,138,4,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center uppercase tracking-tighter"
-        >
-          {loading ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              ANALİZ EDİLİYOR...
-            </>
-          ) : "PRO AYARLARI OLUŞTUR"}
+        {/* Shoot Now Button */}
+        <section className="relative overflow-hidden rounded-3xl p-1 bg-gradient-to-r from-yellow-500 via-yellow-400 to-orange-500 animate-gradient-x">
+          <button 
+            onClick={handleShootNow}
+            disabled={loading}
+            className="w-full bg-[#0a0a0a] py-6 rounded-[22px] flex flex-col items-center justify-center group hover:bg-black/50 transition-all"
+          >
+            <span className="text-2xl font-black text-white tracking-tighter italic uppercase">{t.shootNow}</span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="w-1 h-1 rounded-full bg-yellow-500 animate-ping"></span>
+              <span className="text-[10px] text-yellow-500/80 font-bold tracking-widest uppercase">Smart Sensing Enabled</span>
+            </div>
+          </button>
+        </section>
+
+        <div className="flex items-center gap-4 py-2">
+          <div className="h-px flex-1 bg-white/5"></div>
+          <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em]">{t.manualOr}</span>
+          <div className="h-px flex-1 bg-white/5"></div>
+        </div>
+
+        <div className="space-y-6">
+          <section className="glass rounded-3xl p-6">
+            <h2 className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-6">{t.locTypeLabel}</h2>
+            <div className="grid grid-cols-2 gap-4">
+              {[LocationType.INDOOR, LocationType.OUTDOOR].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setLocType(type)}
+                  className={`py-5 rounded-2xl border-2 transition-all font-black text-xs uppercase tracking-wider ${
+                    locType === type ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/50'
+                  }`}
+                >
+                  {(t.locationTypes as any)[type]}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {locType === LocationType.OUTDOOR && (
+            <section className="glass rounded-3xl p-6 space-y-4">
+              <h2 className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t.locTimeLabel}</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <input type="text" value={country} onChange={e=>setCountry(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs font-bold uppercase tracking-widest focus:ring-1 focus:ring-yellow-500 outline-none" placeholder={t.country} />
+                <input type="text" value={city} onChange={e=>setCity(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs font-bold uppercase tracking-widest focus:ring-1 focus:ring-yellow-500 outline-none" placeholder={t.city} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input type="date" value={date} onChange={e=>setDate(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs font-bold uppercase" />
+                <input type="time" value={time} onChange={e=>setTime(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs font-bold uppercase" />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {Object.values(WeatherType).map(w => (
+                  <button key={w} onClick={()=>setWeather(w)} className={`py-3 rounded-xl border text-[9px] font-black uppercase ${weather === w ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                    {(t.weatherTypes as any)[w]}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="glass rounded-3xl p-6 space-y-4">
+            <h2 className="text-[10px] font-black text-white/40 uppercase tracking-widest">{t.extraLabel}</h2>
+            <textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder={t.descPlaceholder} className="w-full bg-white/5 border border-white/10 rounded-xl p-5 text-sm font-medium focus:ring-1 focus:ring-yellow-500 outline-none min-h-[100px] placeholder:text-white/10" />
+            
+            <div onClick={()=>fileInputRef.current?.click()} className="p-10 border-2 border-dashed border-white/10 rounded-2xl text-center cursor-pointer hover:border-yellow-500/30 transition-all bg-white/[0.01]">
+              {image ? <img src={image} className="max-h-40 mx-auto rounded-xl shadow-2xl" /> : (
+                <>
+                  <p className="text-xs font-black text-white/60 uppercase tracking-widest">{t.upload}</p>
+                  <p className="text-[9px] text-white/20 mt-2 uppercase italic">{t.uploadSub}</p>
+                </>
+              )}
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e)=>{
+                 const file = e.target.files?.[0];
+                 if (file) {
+                   const reader = new FileReader();
+                   reader.onloadend = () => setImage(reader.result as string);
+                   reader.readAsDataURL(file);
+                 }
+              }} />
+            </div>
+          </section>
+        </div>
+
+        <button onClick={getAdvice} disabled={loading} className="w-full py-6 rounded-3xl bg-white text-black font-black text-xl shadow-2xl hover:bg-yellow-500 transition-all disabled:opacity-50 italic">
+          {loading ? t.loading : t.btn}
         </button>
 
-        {/* Results Section */}
+        {autoData && (
+          <div className="bg-yellow-500/5 border border-yellow-500/20 p-5 rounded-2xl flex items-center justify-between animate-in slide-in-from-left-4">
+             <div className="flex items-center gap-4">
+               <span className="text-2xl">📡</span>
+               <div>
+                 <p className="text-[9px] font-black text-yellow-500 uppercase tracking-widest">{t.satelliteData}</p>
+                 <p className="text-xs text-white/90 font-bold uppercase">{autoData.weather} • {autoData.temp} • {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+               </div>
+             </div>
+             <span className="text-[9px] text-yellow-500/40 font-black italic uppercase tracking-tighter">{t.autoLocSuccess}</span>
+          </div>
+        )}
+
         {recommendation && (
-          <section className="mt-12">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black italic tracking-tighter uppercase underline decoration-yellow-500 underline-offset-8">360° TAVSİYESİ</h2>
-              <div className="text-xs font-mono text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
-                Osmo 360 İçin Optimize Edildi
-              </div>
+          <section className="mt-14 space-y-8 pb-20">
+            <div className="flex items-center gap-4">
+              <h2 className="text-3xl font-black italic tracking-tighter uppercase whitespace-nowrap">{t.results}</h2>
+              <div className="h-px w-full bg-gradient-to-r from-yellow-500 to-transparent"></div>
             </div>
-            <SettingsDisplay settings={recommendation} />
+            <SettingsDisplay settings={recommendation} lang={lang} />
           </section>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="mt-20 text-center text-white/10 text-xs font-mono uppercase tracking-[0.2em]">
-        <p>© 2024 DJI Osmo 360 Assistant</p>
-        <p className="mt-2 text-white/5 italic">Lenslerinizin temiz olduğundan emin olun.</p>
+      <footer className="mt-20 text-center text-white/10 text-[8px] font-mono uppercase tracking-[0.5em] opacity-50">
+        <p>© 2024 DJI OSMO 360 AI ENGINE</p>
+        <p className="mt-2">{t.footer}</p>
       </footer>
+
+      <style>{`
+        @keyframes gradient-x {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient-x {
+          background-size: 200% 200%;
+          animation: gradient-x 4s ease infinite;
+        }
+        ::placeholder {
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          font-size: 0.7rem;
+        }
+      `}</style>
     </div>
   );
 };
