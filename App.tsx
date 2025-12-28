@@ -76,11 +76,9 @@ const App: React.FC = () => {
       manualOr: "VEYA MANUEL VERİ GİRİŞİ",
       satelliteData: "UYDU VERİLERİ",
       errors: {
-        geoDenied: "Konum izni reddedildi. Lütfen tarayıcı ayarlarından izin verin.",
-        geoTimeout: "Konum alma isteği zaman aşımına uğradı.",
-        geoUnavailable: "Konum bilgisi şu an mevcut değil.",
-        apiError: "AI Analizi başarısız oldu. Lütfen internetinizi ve API anahtarınızı kontrol edin.",
-        noApiKey: "Sistemde API anahtarı eksik. Lütfen yöneticiye bildirin."
+        geoDenied: "Konum izni reddedildi. Lütfen tarayıcı ayarlarından konuma izin verin.",
+        apiError: "Analiz sırasında bir sorun oluştu. Lütfen tekrar deneyin.",
+        noData: "Konum bilgisi alınamadı, lütfen manuel formu kullanın."
       },
       activityIcons: {
         [ShootingActivity.STATIC]: '🔭',
@@ -157,11 +155,9 @@ const App: React.FC = () => {
       manualOr: "OR MANUAL DATA ENTRY",
       satelliteData: "SATELLITE DATA",
       errors: {
-        geoDenied: "Location permission denied. Please enable it in browser settings.",
-        geoTimeout: "Location request timed out.",
-        geoUnavailable: "Location info is currently unavailable.",
-        apiError: "AI Analysis failed. Please check your internet and API key.",
-        noApiKey: "API Key is missing in the system. Please report to admin."
+        geoDenied: "Location permission denied. Please allow location in settings.",
+        apiError: "Something went wrong during analysis. Please try again.",
+        noData: "Could not get location. Please use the manual form."
       },
       activityIcons: {
         [ShootingActivity.STATIC]: '🔭',
@@ -185,17 +181,24 @@ const App: React.FC = () => {
     }
   }[lang];
 
+  const getPosition = (options: PositionOptions): Promise<GeolocationPosition> => {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
+  };
+
   const handleShootNow = async () => {
     setLoading(true);
     setAutoData(null);
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
+      let position: GeolocationPosition;
+      try {
+        // Try high accuracy first
+        position = await getPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+      } catch (e) {
+        // Fallback to basic accuracy if GPS is slow/weak
+        position = await getPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+      }
       
       const { latitude, longitude } = position.coords;
       const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
@@ -225,13 +228,9 @@ const App: React.FC = () => {
       setRecommendation(result);
     } catch (err: any) {
       console.error("Shoot Now Error:", err);
-      let errorMsg = t.errors.apiError;
-      if (err.code === 1) errorMsg = t.errors.geoDenied;
-      else if (err.code === 2) errorMsg = t.errors.geoUnavailable;
-      else if (err.code === 3) errorMsg = t.errors.geoTimeout;
-      else if (err.message === "API_KEY_MISSING") errorMsg = t.errors.noApiKey;
-      
-      alert(errorMsg);
+      if (err.code === 1) alert(t.errors.geoDenied);
+      else if (err.code === 2 || err.code === 3) alert(t.errors.noData);
+      else alert(t.errors.apiError);
     } finally {
       setLoading(false);
     }
@@ -261,8 +260,7 @@ const App: React.FC = () => {
       setRecommendation(result);
     } catch (error: any) {
       console.error("Manual Entry Error:", error);
-      const msg = error.message === "API_KEY_MISSING" ? t.errors.noApiKey : t.errors.apiError;
-      alert(msg);
+      alert(t.errors.apiError);
     } finally {
       setLoading(false);
     }
@@ -293,7 +291,6 @@ const App: React.FC = () => {
       </header>
 
       <main className="space-y-6">
-        {/* Aktivite Seçimi */}
         <section className="glass rounded-3xl p-6 shadow-2xl">
           <h2 className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-6 flex items-center">
             <span className="w-4 h-px bg-yellow-500/50 mr-2"></span>
@@ -319,7 +316,6 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* Shoot Now Button */}
         <section className="relative overflow-hidden rounded-3xl p-1 bg-gradient-to-r from-yellow-500 via-yellow-200 to-orange-500 animate-gradient-x shadow-2xl">
           <button 
             onClick={handleShootNow}

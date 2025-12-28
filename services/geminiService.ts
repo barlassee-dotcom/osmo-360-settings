@@ -24,15 +24,11 @@ const getSchema = (lang: 'TR' | 'EN') => ({
 });
 
 export async function getSettingsRecommendation(req: RecommendationRequest): Promise<ProSettings> {
-  // Her çağrıda yeni instance oluştur (Guideline kuralı)
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  // Hard requirement: Always create a new instance with process.env.API_KEY
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   const model = "gemini-3-flash-preview";
   const { envData, lang } = req;
   
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY_MISSING");
-  }
-
   const systemInstruction = lang === 'TR' 
     ? `Sen DJI Osmo 360 için uzman bir sinematografsın. Çekim aktivitesine göre (örn: motor, sabit, yürüyüş, müze, parti) en doğru ayarları önerirsin. 
     İç mekan çekimlerinde yapay ışık titremesini (anti-flicker) ve dikiş izlerini (parallax) önleme konularına odaklan. 
