@@ -9,7 +9,8 @@ export enum LocationType {
 }
 
 export enum ShootingActivity {
-  STATIC = 'STATIC',
+  // Outdoor
+  STATIC_LANDSCAPE = 'STATIC_LANDSCAPE',
   WALKING = 'WALKING',
   RUNNING = 'RUNNING',
   CYCLING = 'CYCLING',
@@ -17,6 +18,7 @@ export enum ShootingActivity {
   DRIVING = 'DRIVING',
   VLOGGING = 'VLOGGING',
   ACTION = 'ACTION',
+  // Indoor
   PARTY = 'PARTY',
   MUSEUM = 'MUSEUM',
   CONCERT = 'CONCERT',
@@ -40,14 +42,10 @@ export enum WeatherType {
 export interface EnvironmentData {
   type: LocationType;
   activity: ShootingActivity;
-  country?: string;
-  city?: string;
-  date?: string;
-  time?: string;
-  weather?: string;
-  temp?: string;
+  weather?: WeatherType;
+  time: string; // HH:mm format
+  locationContext?: string; // "Orman", "Şehir Merkezi" vb.
   description?: string;
-  isAuto?: boolean;
 }
 
 export interface ProSettings {
@@ -61,13 +59,6 @@ export interface ProSettings {
   ndFilter: string;
   explanation: string;
   proTips: string[];
-}
-
-export interface RecommendationRequest {
-  device: DeviceType;
-  envData: EnvironmentData;
-  image?: string;
-  lang: 'TR' | 'EN';
 }
 
 export type AppLang = 'TR' | 'EN';
